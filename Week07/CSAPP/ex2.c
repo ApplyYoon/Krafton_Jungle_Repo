@@ -1,8 +1,10 @@
 #include <unistd.h>
+#include <stdint.h>
 
 int main(void) {
 
-    void *sbrk(__intptr_t incr);
+    // Returns: old brk pointer on success, -1 on error
+    void *sbrk(intptr_t incr);
 
     return 0;
 }
