@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug mdriver",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/malloc-lab/mdriver",
+            "args": [
+                "-V",
+                "-f",
+                "short1-bal.rep",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/malloc-lab",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build mdriver"
+        }
+    ]
+}
