@@ -18,17 +18,54 @@
 #include "mm.h"
 #include "memlib.h"
 
+/* Basic constants and macros */
+#define WSIZE       4       /* Word and header/footer size (bytes) */
+#define DSIZE       8       /* Doubleword size (bytes) */
+
+#define CHUNKSIZE  (1<<12)  /* Extend heap by this amount (bytes) */
+// 자주 조금씩 요청하는 것보다, 한 번에 크게 요청하는 게 훨씬 효율적
+
+#define MAX(x, y) ((x) > (y)? (x) : (y))
+
+/* Pack a size and allocated bit into a word */
+#define PACK(size, alloc)  ((size) | (alloc))
+// alloc -> allocated bit
+// PACK(16, 0) = 0x10 | 0x0 = 0x10
+// PACK(16, 1) = 0x10 | 0x1 = 0x11
+
+/* Read and write a word at address p */
+#define GET(p)       (*(unsigned int *)(p))
+#define PUT(p, val)  (*(unsigned int *)(p) = (val))
+// GET(p): 주소 p의 값을 읽음
+// PUT(p, val): 주소 p에 val을 씀
+
+/* Read the size and allocated fields from address p */
+
+#define GET_SIZE(p)  (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
+
+
+/* Given block ptr bp, compute address of its header and footer */
+
+#define HDRP(bp) ((char *)(bp) - WSIZE)
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+
+/* Given block ptr bp, compute address of next and previous blocks */
+
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
+
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
  * provide your team information in the following struct.
  ********************************************************/
 team_t team = {
     /* Team name */
-    "ateam",
+    "Krafton Jungle",
     /* First member's full name */
-    "Harry Bovik",
+    "Jiwon Yoon",
     /* First member's email address */
-    "bovik@cs.cmu.edu",
+    "include.yoonio.h@gmail.com",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
@@ -42,17 +79,29 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+void extend_heap(void) {
+    // mem_sbrk(CHUNKSIZE);
+}
+
 /*
  * mm_init - initialize the malloc package.
  */
+
+// Returns: 0 on success, -1 on error
 int mm_init(void)
 {
+    char* prev = mem_sbrk(WSIZE * 4); // padding PH, PF, EH
+
+    // 헤더, 프롤로그, 에필로그 어떻게 만들지 생각
+
+    // char* header = 
+    // PUT(prev, );
     return 0;
 }
 
 /*
  * mm_malloc - Allocate a block by incrementing the brk pointer.
- *     Always allocate a block whose size is a multiple of the alignment.
+ *     Always allocate a block whose size is a multiple of the alignment. (8)
  */
 void *mm_malloc(size_t size)
 {
