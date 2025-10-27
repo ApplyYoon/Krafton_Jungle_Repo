@@ -79,8 +79,100 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-void extend_heap(void) {
-    // mem_sbrk(CHUNKSIZE);
+static char* heap_start_pos;
+static char* epilogue_header_pos;
+
+void coalesce_with_next(char *bp, char *next_bp){
+    size_t size = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next_bp));
+    
+    int new_header = PACK(size, 0);
+    PUT(HDRP(bp), new_header);
+
+    int new_footer = PACK(size, 0);
+    PUT(FTRP(next_bp), new_footer);
+
+    return;
+}
+
+void coalesce_with_prev(char *prev_bp, char *bp){
+    size_t size = GET_SIZE(HDRP(prev_bp)) + GET_SIZE(HDRP(bp));
+        
+    int new_header = PACK(size, 0);
+    PUT(HDRP(prev_bp), new_header);
+
+    int new_footer = PACK(size, 0);
+    PUT(FTRP(bp), new_footer);
+
+    return;
+}
+
+void coalesce_with_both(char *prev_bp, char *bp, char *next_bp){
+    size_t size = GET_SIZE(HDRP(prev_bp)) +
+                GET_SIZE(HDRP(bp)) +
+                GET_SIZE(HDRP(next_bp));
+
+    PUT(HDRP(prev_bp), PACK(size, 0));
+    PUT(FTRP(next_bp), PACK(size, 0));
+
+    return;
+}
+
+void coalesce(char *bp) {
+    char* prev_bp = PREV_BLKP(bp);
+    char* next_bp = NEXT_BLKP(bp);
+
+    int prev_alloc = GET_ALLOC(FTRP(prev_bp));
+    int next_alloc = GET_ALLOC(HDRP(next_bp));
+
+    // [alloc][FREE][FREE]
+    if (prev_alloc && !next_alloc)
+        coalesce_with_next(bp, next_bp);
+
+    // [FREE][FREE][alloc]
+    if (!prev_alloc && next_alloc){
+        coalesce_with_prev(prev_bp, bp);
+    }
+
+    // [FREE][FREE][FREE]
+    // coalesce_case1(bp, next_bp);  // After [FREE][Marged FREE]
+    // coalesce_case2(prev_bp, bp);  // After [Marged FREE]
+    if (!prev_alloc && !next_alloc){
+        coalesce_with_both(prev_bp, bp, next_bp);
+    }
+
+    return;
+}
+
+/// @return return 1 on success, 0 on error
+int extend_heap(char* start_addr, size_t inputed_size) {
+
+    // decide size
+    size_t extend_size = MAX(inputed_size, CHUNKSIZE);
+    if (extend_size == inputed_size)
+        extend_size += CHUNKSIZE;
+
+    // sbrk
+    char* result = mem_sbrk(extend_size);
+
+    // except
+    if (result == (void *)-1)
+        return 0;
+
+    // update epilogue
+    epilogue_header_pos = result + extend_size;
+    PUT(epilogue_header_pos, PACK(0, 1));
+
+    // Packing header & footer
+    int header = PACK(extend_size, 0);
+    int footer = header;
+
+    // Put
+    PUT(start_addr, header);
+    PUT((start_addr + extend_size) - WSIZE, footer);
+
+    coalesce(start_addr + WSIZE);
+
+    return 1;
 }
 
 /*
@@ -89,13 +181,27 @@ void extend_heap(void) {
 
 // Returns: 0 on success, -1 on error
 int mm_init(void)
-{
-    char* prev = mem_sbrk(WSIZE * 4); // padding PH, PF, EH
+{ 
+    heap_start_pos = mem_sbrk(WSIZE * 4); // padding PH, PF, EH
 
-    // 헤더, 프롤로그, 에필로그 어떻게 만들지 생각
+    if (heap_start_pos == (void *) -1) // except
+        return -1;
 
-    // char* header = 
-    // PUT(prev, );
+    // Get Prologue & Epilogue data
+    int init_prologue_data = PACK(DSIZE, 1);
+    int init_epilogue_data = PACK(0, 1);
+
+    // Prologue
+    PUT(heap_start_pos, init_prologue_data);                   // Padding
+    PUT(heap_start_pos + (WSIZE * 1), init_prologue_data);     // Header
+    PUT(heap_start_pos + (WSIZE * 2), init_prologue_data);     // Footer
+
+    heap_start_pos += DSIZE;
+
+    // Epilogue Header
+    PUT(heap_start_pos + (WSIZE * 2), init_epilogue_data);     
+
+    // extend_heap(epilogue_header_pos, CHUNKSIZE);
     return 0;
 }
 
@@ -116,7 +222,7 @@ void *mm_malloc(size_t size)
     }
 }
 
-/*
+/*--
  * mm_free - Freeing a block does nothing.
  */
 void mm_free(void *ptr)
