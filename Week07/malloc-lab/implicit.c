@@ -184,7 +184,7 @@ int mm_init(void)
     char *base;
     if ((base = mem_sbrk(4 * WSIZE)) == (void *)-1)
         return -1;
-
+        
     char *p = base;
     if ( ((unsigned long)(p + 2 * WSIZE)) % 8 != 0 )
         p += WSIZE; /* use the second word as the start if needed */
@@ -268,7 +268,7 @@ void mm_free(void *bp)
     coalesce(bp);
 }
 
-/* 
+/*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
 void *mm_realloc(void *ptr, size_t size)
