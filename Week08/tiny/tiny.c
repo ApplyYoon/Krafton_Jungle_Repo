@@ -132,36 +132,74 @@ void doit(int fd)
     }
 }
 
+// 클라이언트가 보낸 HTTP 요청의 헤더 부분을 모두 읽어버리는 함수이다.
 void read_requesthdrs(rio_t *rp)
 {
-    char buf[MAXLINE];
+    // 한 줄씩 읽을 임시 버퍼를 선언한다. (HTTP 요청은 여러 줄로 구성됨)
+    char buf[MAXLINE]; 
+
+    // do-while 루프를 사용해, 최소 한 줄은 반드시 읽는다.
     do {
+        
+        // 한 줄을 읽어서 buf에 저장한다.
+        // ex) "Host: localhost:8000\r\n"
         Rio_readlineb(rp, buf, MAXLINE);
+
+        // 헤더의 끝을 의미하는 빈 줄("\r\n")을 만나면 루프 종료
+        // 즉, HTTP 요청의 헤더 부분이 끝났음을 의미함.
         if (!strcasecmp(buf, "\r\n")) break;
-    } while (1);
+
+    } while (1); // 빈 줄이 나올 떄 까지 계속 읽는다.
 }
 
+
+// 클라이언트가 보낸 URI를 분석하여
+// (1) 정적 콘텐츠인지 동적 콘텐츠인지 판별하고
+// (2) 실제 파일 경로(filename)와 CGI 인자(cgiargs)를 채워주는 함수다.
 int parse_uri(char *uri, char *filename, char *cgiargs)
 {
+    // URI 안에서 '?'(쿼리 스트링 시작 위치)를 찾기 위한 임시 포인터다.
     char *ptr;
 
-    if (!strstr(uri, "cgi-bin")) { // static
-        strcpy(cgiargs, "");
-        strcpy(filename, ".");
-        strcat(filename, uri);
+    // [정적 콘텐츠 판단 부분]
+    // URI에 "cgi-bin"이 포함되어 있지 않다면 -> 정적 콘텐츠로 간주한다.
+    // ex) /home.html, /images/cat.png 등
+    if (!strstr(uri, "cgi-bin")) {   // static (정적)
+        strcpy(cgiargs, "");         // 정적 콘텐츠는 쿼리 인자가 없으므로 빈 문자열로 초기화
+        strcpy(filename, ".");       // 상대 경로 시작점 (현재 디렉토리 기준)
+        strcat(filename, uri);       // 요청된 URI를 파일 이름 뒤에 붙임 -> "./home.html"
+
+       // 만약 URI가 "/"로 끝나면 (즉, 파일 이름이 생략된 경우)
+       // 기본 페이지로 "home.html"을 저장한다. ex) / -> ./home.html
         if (uri[strlen(uri)-1] == '/')
             strcat(filename, "home.html");
-        return 1;
+
+        return 1; // 정적 콘텐츠임을 알림 (1 반환)
     }
-    else { // dynamic
-        ptr = index(uri, '?');
+
+    // [동적 콘텐츠 판단 부분]
+    // URI에 "cgi-bin"이 포함되어 있다면 -> CGI 프로그램 실행 요청
+    // ex) /cgi-bin/addr?3&5
+    else {  // dynamic (동적)
+        // '?' 문자(쿼리 인자 시작점)를 찾는다.
+        ptr = index(uri, '?');       
+
+        // '?'가 존재하면, 그 뒤의 문자열을 CGI 인자(cgiargs)로 저장한다.
         if (ptr) {
-            *ptr = '\0';
-            strcpy(cgiargs, ptr+1);
-        } else strcpy(cgiargs, "");
-        strcpy(filename, ".");
-        strcat(filename, uri);
-        return 0;
+            *ptr = '\0';                // '?' 자리를 문자열 종료 문자('\0')로 바꿔서
+                                        // URI를 "/cgi-bin/adder" 부분까지만 남긴다.
+
+            strcpy(cgiargs, ptr+1);     // '?' 뒤의 문자열("3&5")을 cgiargs에 복사  
+        }
+        
+        // '?'가 없다면 쿼리 인자가 없는 CGI 요청 -> 빈 문자열로 처리
+        else strcpy(cgiargs, "");  
+
+        // 실행할 CGI 프로그램의 파일 경로를 filename에 저장한다.
+        strcpy(filename, ".");     // 현재 디렉토리 기준
+        strcat(filename, uri);     // ex) "./cgi-bin/adder"
+
+        return 0;  // 동적 콘텐츠임을 알림 (0 반환)
     }
 }
 
