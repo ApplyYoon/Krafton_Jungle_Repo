@@ -1064,8 +1064,10 @@ int Open_listenfd(char *port)
     return rc;
 }
 
+void Setenv(const char *name, const char *value, int overwrite)
+{
+    if (setenv(name, value, overwrite) < 0)
+        unix_error("Setenv error");
+}
+
 /* $end csapp.c */
-
-
-
-
