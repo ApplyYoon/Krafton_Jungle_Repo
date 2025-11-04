@@ -339,11 +339,18 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     // <p>Tiny couldn't find this file: ./none.html
     // <hr><em>The Tiny Web server</em>
 
+    // 상태 줄(Status line): HTTP 버전, 상태 코드, 상태 메시지
     snprintf(buf, sizeof(buf), "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
     Rio_writen(fd, buf, strlen(buf));
+
+    // 헤더 1: 콘텐츠 타입(Content-type)
     snprintf(buf, sizeof(buf), "Content-type: text/html\r\n");
     Rio_writen(fd, buf, strlen(buf));
+    
+    // 헤더 2: 콘텐츠 길이(Content-length)
     snprintf(buf, sizeof(buf), "Content-length: %zu\r\n\r\n", strlen(body));
     Rio_writen(fd, buf, strlen(buf));
+
+    // 실제 본문 전송
     Rio_writen(fd, body, strlen(body));
 }
