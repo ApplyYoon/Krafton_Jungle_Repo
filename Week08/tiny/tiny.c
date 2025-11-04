@@ -255,31 +255,70 @@ void serve_static(int fd, char *filename, int filesize)
     Munmap(srcp, filesize);
 }
 
+// 요청된 파일 이름(filename)의 확장자를 분석하여
+// 적절한 MIME 타입 문자열(filetype)을 결정하는 함수다.
 void get_filetype(char *filename, char *filetype)
 {
+    // 파일 이름 안에 ".html"이 포함되어 있으면 -> HTML 문서다.
+    // 브라우저가 text/html를 이용해 렌더링하도록 설정한다.
     if (strstr(filename, ".html"))      strcpy(filetype, "text/html");
-    else if (strstr(filename, ".gif"))  strcpy(filetype, "image/gif");
-    else if (strstr(filename, ".png"))  strcpy(filetype, "image/png");
-    else if (strstr(filename, ".jpg"))  strcpy(filetype, "image/jpeg");
-    else if (strstr(filename, ".css"))  strcpy(filetype, "text/css");
-    else if (strstr(filename, ".js"))   strcpy(filetype, "application/javascript");
-    else                                 strcpy(filetype, "text/plain");
+
+    // ".gif"가 포함되어 있으면 → GIF 이미지
+    else if (strstr(filename, ".gif"))  
+        strcpy(filetype, "image/gif");
+
+    // ".png"가 포함되어 있으면 → PNG 이미지
+    else if (strstr(filename, ".png"))  
+        strcpy(filetype, "image/png");
+
+    // ".jpg" → JPEG 이미지
+    else if (strstr(filename, ".jpg"))  
+        strcpy(filetype, "image/jpeg");
+
+    // ".css" → 스타일시트 파일
+    else if (strstr(filename, ".css"))  
+        strcpy(filetype, "text/css");
+
+    // ".js" → 자바스크립트 파일
+    else if (strstr(filename, ".js"))   
+        strcpy(filetype, "application/javascript");
+
+    // 위의 어떤 확장자에도 해당하지 않으면
+    // 기본값으로 text/plain (일반 텍스트) 지정
+    else 
+        strcpy(filetype, "text/plain");
 }
 
+// CGI 프로그램을 실행하여 동적 콘텐츠를 생성하고,
+// 그 결과를 클라이언트(FD)로 전송하는 함수다.
 void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
-    char buf[MAXLINE];
-    char *emptylist[] = { NULL };
+    char buf[MAXLINE];               // 출력용 임시 버퍼
+    char *emptylist[] = { NULL };    // execve() 호출 시 넘길 argv 리스트
 
-    // Minimal headers for CGI response start (some CGI print their own headers)
-    // (주: adder.c는 스스로 Content-type 헤더를 출력합니다)
+    // CGI 응답 헤더를 최소한으로 설정할 수도 있지만,
+    // 대부분의 CGI(예: adder.c)는 자체적으로 Content-type 헤더를 출력한다.
+    // 그래서 Tiny는 여기서 헤더를 직접 만들지 않는다.
 
-    if (Fork() == 0) { // child
+    if (Fork() == 0) { // 자식 프로세스를 생성한다. (fork 반환값이 0이면 자식 프로세스)
+        // 브라우저가 보낸 쿼리 문자열(cgiargs)을 환경 변수로 등록한다.
+        // 예: GET /cgi-bin/adder?3&5 → QUERY_STRING="3&5"
         Setenv("QUERY_STRING", cgiargs, 1);
-        Dup2(fd, STDOUT_FILENO);              // stdout -> client
+
+        // 자식 프로세스의 표준출력(stdout)을 클라이언트 소켓(fd)에 복제한다.
+        // 이제 CGI 프로그램이 printf() 하면 그 결과가 브라우저로 전송됨.        
+        Dup2(fd, STDOUT_FILENO);         
+
+        // Execve()로 현재 자식 프로세스의 메모리를 CGI 프로그램으로 교체한다.
+        // filename = "./cgi-bin/adder"
+        // emptylist = 명령줄 인자 없음
+        // environ = 현재 환경변수 목록 (QUERY_STRING 포함)
         Execve(filename, emptylist, environ); // run CGI
+
+        // 여기까지 오면 Execve 실패 (정상이라면 돌아오지 않음)
     }
-    Wait(NULL); // parent waits
+    // 부모 프로세스는 자식(CGI 프로그램)이 종료할 때까지 대기한다.
+    Wait(NULL);
 }
 
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg)
