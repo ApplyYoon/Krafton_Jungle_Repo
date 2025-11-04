@@ -203,28 +203,55 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
     }
 }
 
+// 요청된 파일을 읽어와, 적절한 HTTP 헤더와 함께 브라우저에 그대로 전송하는 함수다.
 void serve_static(int fd, char *filename, int filesize)
 {
-    int srcfd;
-    char *srcp;
-    char filetype[MAXLINE], buf[MAXBUF];
+    // FD, 파일 메모리 매핑 포인터 선언 
+    int srcfd;                // 읽을 파일의 FD
+    char *srcp;               // 메모리에 매핑된 파일의 시작 주소
+    char filetype[MAXLINE];   // MIME 타입 저장용 버퍼 (text/html, image/png 등)
+    char buf[MAXBUF];         // HTTP 응답 헤더를 구성할 문자열 버퍼
 
+    // 파일 확장자를 보고 콘텐츠 타입(MIME type)을 결정한다.
+    // ex) .html -> text/html,  .jpg -> image/jpeg
+    // 브라우저가 어떤 방식으로 내용을 렌더링할지 이 정보로 판단한다.
     get_filetype(filename, filetype);
-    // Response headers
+
+
+    // 응답 헤더
     snprintf(buf, sizeof(buf),
-        "HTTP/1.0 200 OK\r\n"
-        "Server: Tiny Web Server\r\n"
-        "Connection: close\r\n"
-        "Content-length: %d\r\n"
-        "Content-type: %s\r\n\r\n",
+        "HTTP/1.0 200 OK\r\n"            // HTTP 버전, 정상 응답 (요청 성공) 코드
+        "Server: Tiny Web Server\r\n"    // 서버 정보 표시
+        "Connection: close\r\n"          // 이 응답 후 연결 종료
+        "Content-length: %d\r\n"         // 파일의 크기(바이트 단위)
+        "Content-type: %s\r\n\r\n",      // 파일의 MIME 타입 ex) text/html
         filesize, filetype);
+
+    // 응답 헤더 전송
+    // 위에서 만든 헤더를 클라이언트 소켓으로 전송한다. (FD 사용)
+    // 이제 브라우저는 "이제부터 본문이 온다"는 걸 인식한다.
     Rio_writen(fd, buf, strlen(buf));
 
-    // Send file body
+    // 파일 내용 읽기 (디스크 -> 메모리)
+    // 디스크의 파일을 읽기 전용 모드로 연다.
+    // 성공 시 파일 디스크립터(srcfd) 반환
     srcfd = Open(filename, O_RDONLY, 0);
+
+    // mmap()을 이용해 파일을 통째로 메모리에 매핑한다.
+    // srcp는 파일 내용이 올라간 메모리의 시작 주소다.
+    // 장점 1) 별도의 read() 루프 없이 빠르게 전송 가능하다.
+    // 장점 2) 운영체제가 파일 내용을 캐싱한다.
     srcp  = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+
+    // 파일을 메모리에 이미 올렸으므로, 더 이상 FD든 필요 없어서 닫는다.
     Close(srcfd);
+
+    // 메모리에 올라간 파일 내용을 그대로 클라이언트로 전송한다.
+    // 즉, HTML 문서나 이미지의 실제 데이터가 여기서 브라우저로 전달된다.
     Rio_writen(fd, srcp, filesize);
+
+    // mmap()으로 확보한 메모리 매핑을 해제한다.
+    // 메모리 누수 방지를 위해 반드시 해줘야한다.
     Munmap(srcp, filesize);
 }
 
