@@ -70,6 +70,7 @@ void app_error(char *msg);
 /* Process control wrappers */
 pid_t Fork(void);
 void Execve(const char *filename, char *const argv[], char *const envp[]);
+void Setenv(const char *name, const char *value, int overwrite);
 pid_t Wait(int *status);
 pid_t Waitpid(pid_t pid, int *iptr, int options);
 void Kill(pid_t pid, int signum);
@@ -78,6 +79,7 @@ void Pause(void);
 unsigned int Alarm(unsigned int seconds);
 void Setpgid(pid_t pid, pid_t pgid);
 pid_t Getpgrp();
+
 
 /* Signal wrappers */
 typedef void handler_t(int);
