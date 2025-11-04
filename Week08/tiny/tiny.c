@@ -321,19 +321,24 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     Wait(NULL);
 }
 
+// 클라이언트에게 에러 메시지를 HTML 형태로 전송하는 함수다.
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg)
 {
-    char buf[MAXBUF], body[MAXBUF];
-
-    // Build the HTTP response body
+    char buf[MAXBUF], body[MAXBUF];   // HTTP 헤더용(buf)와 HTML 본문용(body) 버퍼
+       
     snprintf(body, sizeof(body),
-        "<html><title>Tiny Error</title>"
-        "<body bgcolor=\"ffffff\">\r\n"
-        "%s: %s\r\n<p>%s: %s\r\n"
-        "<hr><em>The Tiny Web server</em>\r\n",
+        "<html><title>Tiny Error</title>"          // HTML 제목
+        "<body bgcolor=\"ffffff\">\r\n"            // 배경 흰색
+        "%s: %s\r\n<p>%s: %s\r\n"                  // 상태 코드, 메시지, 설명, 원인
+        "<hr><em>The Tiny Web server</em>\r\n",    // 서버 이름 표시 (footer)
         errnum, shortmsg, longmsg, cause);
 
-    // Print the HTTP response
+    // body 결과 예시:
+    // <html><title>Tiny Error</title><body bgcolor="ffffff">
+    // 404: Not found
+    // <p>Tiny couldn't find this file: ./none.html
+    // <hr><em>The Tiny Web server</em>
+
     snprintf(buf, sizeof(buf), "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
     Rio_writen(fd, buf, strlen(buf));
     snprintf(buf, sizeof(buf), "Content-type: text/html\r\n");
