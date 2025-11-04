@@ -14,9 +14,8 @@ csapp.o: csapp.c
 	$(CC) $(CFLAGS) -c csapp.c
 
 cgi:
-	(cd cgi-bin; make)
+	(cd cgi-bin; gcc -O2 -Wall -I .. -o adder adder.c ../csapp.o)
 
 clean:
 	rm -f *.o tiny *~
 	(cd cgi-bin; make clean)
-
