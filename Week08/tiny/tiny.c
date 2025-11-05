@@ -30,7 +30,6 @@ int main(int argc, char **argv)
 
     // 무한 루프: 서버는 게속해서 클라이언트 요청을 기다린다.
     while (1) {
-
         // 클라이언트의 주소 정보를 저장할 구조체의 크기를 준비한다.
         // (Accept가 여기에 실제 클라이언트의 주소를 채워넣는다)
         clientlen = sizeof(clientaddr);
@@ -148,6 +147,8 @@ void read_requesthdrs(rio_t *rp)
         // 헤더의 끝을 의미하는 빈 줄("\r\n")을 만나면 루프 종료
         // 즉, HTTP 요청의 헤더 부분이 끝났음을 의미함.
         if (!strcasecmp(buf, "\r\n")) break;
+
+        printf(buf, "\n\n");     // 숙제 11.6
 
     } while (1); // 빈 줄이 나올 떄 까지 계속 읽는다.
 }
@@ -282,6 +283,10 @@ void get_filetype(char *filename, char *filetype)
     // ".js" → 자바스크립트 파일
     else if (strstr(filename, ".js"))   
         strcpy(filetype, "application/javascript");
+
+    // 숙제 11.7
+    else if (strstr(filename, ".mov"))
+        strcpy(filetype, "video/quicktime");
 
     // 위의 어떤 확장자에도 해당하지 않으면
     // 기본값으로 text/plain (일반 텍스트) 지정
