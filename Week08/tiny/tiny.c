@@ -95,7 +95,7 @@ void doit(int fd)
     // parse_uri() 함수를 통해 URI를 분석하여 filename, cgiargs 추출 및
     // 정적/동적 콘텐츠 판단한다. (정적이면 filename만, 동적이면 cgiargs도 함께 저장)
     is_static = parse_uri(uri, filename, cgiargs);
-
+    
     // 요청한 파일의 존재 여부를 stat()으로 확인한다.
     // (파일 정보가 sbuf에 저장됨)
     if (stat(filename, &sbuf) < 0) {
